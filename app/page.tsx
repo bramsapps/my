@@ -2,11 +2,10 @@ import { getCurrentPhoto } from "@/lib/actions"
 import PhotoUploadFixed from "@/components/photo-upload-fixed"
 import LocationDateModal from "@/components/location-date-modal"
 import Image from "next/image"
-import DescriptionEditor from "@/components/description-editor"
-import DownloadButton from "@/components/download-button"
 import { formatDate } from "@/lib/utils"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { MapPin, Calendar } from "lucide-react"
 
 export default async function Home() {
   // Probeer de huidige foto op te halen
@@ -39,59 +38,58 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* 2CV Locatie met tekst als onderdeel van de knop */}
+          {/* Locatie en datum informatie onder de foto */}
           {currentPhoto.location_name && (
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="bg-white shadow-md rounded-lg p-4 max-w-md w-full">
+                <div className="flex items-center gap-2 mb-2">
+                  <MapPin className="h-5 w-5 text-teal-600" />
+                  <h3 className="font-semibold text-lg">Locatie</h3>
+                </div>
+                <p className="text-gray-700">{currentPhoto.location_name}</p>
+              </div>
+
+              {currentPhoto.photo_date && (
+                <div className="bg-white shadow-md rounded-lg p-4 max-w-md w-full">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-5 w-5 text-teal-600" />
+                    <h3 className="font-semibold text-lg">Datum</h3>
+                  </div>
+                  <p className="text-gray-700">{formatDate(currentPhoto.photo_date)}</p>
+                </div>
+              )}
+
+              {/* Google Maps knop met autootje */}
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                   currentPhoto.location_name,
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 px-4 py-2 bg-amber-400 hover:bg-amber-500 text-black rounded-md transition-colors"
+                className="flex items-center gap-3 px-6 py-3 bg-amber-400 hover:bg-amber-500 text-black rounded-md transition-colors shadow-md"
               >
-                <div className="relative w-10 h-10">
+                <div className="relative w-8 h-8">
                   <Image src="/2cv-icon.png" alt="2CV Auto" fill className="object-contain" />
                 </div>
-                <span className="font-medium">Waar staan ze deze keer</span>
+                <span className="font-medium">Route bepalen</span>
               </a>
             </div>
           )}
 
-          {/* Download knop - rechts uitgelijnd */}
-          <div className="flex justify-end">
-            <DownloadButton
-              imageUrl={currentPhoto.image_url}
-              fileName={
-                currentPhoto.location_name
-                  ? `twee-stoelen-${currentPhoto.location_name.toLowerCase().replace(/\s+/g, "-")}.jpg`
-                  : `twee-stoelen-foto-${currentPhoto.id}.jpg`
-              }
-            />
-          </div>
-
-          {/* Informatie sectie */}
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h2 className="text-xl font-semibold mb-2">Locatie & Datum</h2>
-              <div className="p-4 border rounded-md">
-                <p className="font-medium">{currentPhoto.location_name || "Geen locatie opgegeven"}</p>
-                <p className="text-muted-foreground">
-                  {currentPhoto.photo_date ? formatDate(currentPhoto.photo_date) : "Geen datum opgegeven"}
-                </p>
-              </div>
-              {!currentPhoto.location_name && (
-                <div className="mt-2 flex justify-end">
-                  <LocationDateModal photo={currentPhoto} />
-                </div>
-              )}
+          {/* Knop om locatie en datum toe te voegen als deze nog niet zijn ingesteld */}
+          {!currentPhoto.location_name && (
+            <div className="flex justify-center">
+              <LocationDateModal
+                photo={currentPhoto}
+                trigger={
+                  <Button size="lg" className="gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Locatie & Datum toevoegen
+                  </Button>
+                }
+              />
             </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-2">Beschrijving</h2>
-              <DescriptionEditor photo={currentPhoto} />
-            </div>
-          </div>
+          )}
         </div>
         <PhotoUploadFixed />
       </div>

@@ -143,7 +143,7 @@ export default function LocationDateModal({ photo, trigger }: LocationDateModalP
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>
             Annuleren
           </Button>
-          <Button type="button" onClick={handleSave} disabled={isSaving}>
+          <Button type="button" onClick={handleSave} disabled={isSaving || !locationName}>
             {isSaving ? "Opslaan..." : "Opslaan"}
           </Button>
         </DialogFooter>

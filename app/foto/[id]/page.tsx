@@ -33,10 +33,13 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 
 export default async function FotoDetailPage({ params }: { params: { id: string } }) {
   let photo = null
+  let fetchError = false
+
   try {
     photo = await getPhotoById(Number.parseInt(params.id))
   } catch (error) {
     console.error("Error fetching photo:", error)
+    fetchError = true
   }
 
   if (!photo) {
@@ -55,12 +58,15 @@ export default async function FotoDetailPage({ params }: { params: { id: string 
           <p className="text-muted-foreground">
             De foto die je zoekt bestaat niet of er is een probleem met de database verbinding.
           </p>
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 max-w-md mx-auto mt-4">
-            <p className="font-medium">Supabase verbinding</p>
-            <p className="text-sm mt-1">
-              Zorg ervoor dat je de juiste Supabase omgevingsvariabelen hebt ingesteld in je Vercel project.
-            </p>
-          </div>
+          {fetchError && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-800 max-w-md mx-auto mt-4">
+              <p className="font-medium">Database verbindingsfout</p>
+              <p className="text-sm mt-1">
+                Er kon geen verbinding worden gemaakt met de database. Controleer de netwerkinstellingen en probeer het
+                opnieuw.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     )

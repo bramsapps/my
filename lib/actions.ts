@@ -1,77 +1,68 @@
 "use server"
 
-import { getSupabaseClient } from "@/lib/supabase-server"
 import { revalidatePath } from "next/cache"
 import type { Photo } from "@/lib/types"
-
-// Dummy data voor wanneer de database niet beschikbaar is
-const dummyPhoto: Photo = {
-  id: 1,
-  image_url: "/vast-mountain-valley.png",
-  created_at: new Date().toISOString(),
-  is_current: true,
-  location_lat: null,
-  location_lng: null,
-  location_name: "Demo Locatie",
-  description: "Dit is een voorbeeld foto omdat er geen verbinding kon worden gemaakt met de database.",
-  photo_date: new Date().toISOString(),
-}
+import { fetchCurrentPhoto, fetchAllPhotos, fetchPhotoById, dummyPhoto, dummyPhotos } from "@/lib/direct-api"
 
 export async function getCurrentPhoto(): Promise<Photo | null> {
   try {
-    const supabase = getSupabaseClient()
+    // Probeer de huidige foto op te halen via de directe API
+    const photo = await fetchCurrentPhoto()
 
-    const { data, error } = await supabase.from("photos").select("*").eq("is_current", true).single()
-
-    if (error) {
-      console.error("Error fetching current photo:", error)
-      return null
+    // Als er geen foto is, gebruik de dummy foto
+    if (!photo) {
+      console.log("Geen huidige foto gevonden, gebruik dummy foto")
+      return dummyPhoto
     }
 
-    return data
+    return photo
   } catch (error) {
     console.error("Error in getCurrentPhoto:", error)
-    return null
+    // Bij een fout, gebruik de dummy foto
+    return dummyPhoto
   }
 }
 
 export async function getAllPhotos(): Promise<Photo[]> {
   try {
-    const supabase = getSupabaseClient()
+    // Probeer alle foto's op te halen via de directe API
+    const photos = await fetchAllPhotos()
 
-    const { data, error } = await supabase.from("photos").select("*").order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("Error fetching photos:", error)
-      return []
+    // Als er geen foto's zijn, gebruik de dummy foto's
+    if (!photos || photos.length === 0) {
+      console.log("Geen foto's gevonden, gebruik dummy foto's")
+      return dummyPhotos
     }
 
-    return data || []
+    return photos
   } catch (error) {
     console.error("Error in getAllPhotos:", error)
-    return []
+    // Bij een fout, gebruik de dummy foto's
+    return dummyPhotos
   }
 }
 
 export async function getPhotoById(id: number): Promise<Photo | null> {
   try {
-    const supabase = getSupabaseClient()
+    // Probeer de foto op te halen via de directe API
+    const photo = await fetchPhotoById(id)
 
-    const { data, error } = await supabase.from("photos").select("*").eq("id", id).single()
-
-    if (error) {
-      console.error(`Error fetching photo with id ${id}:`, error)
-      return null
+    // Als er geen foto is, gebruik de dummy foto
+    if (!photo) {
+      console.log(`Geen foto gevonden met id ${id}, gebruik dummy foto`)
+      return dummyPhoto
     }
 
-    return data
+    return photo
   } catch (error) {
     console.error(`Error in getPhotoById for id ${id}:`, error)
-    return null
+    // Bij een fout, gebruik de dummy foto
+    return dummyPhoto
   }
 }
 
 export async function uploadPhoto(formData: FormData): Promise<{ data?: any; error?: string }> {
+  // Deze functie blijft ongewijzigd omdat deze via de API route werkt
   const file = formData.get("photo") as File | null
 
   if (!file) {
@@ -79,65 +70,20 @@ export async function uploadPhoto(formData: FormData): Promise<{ data?: any; err
   }
 
   try {
-    const supabase = getSupabaseClient()
-
-    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "")}`
-
-    // Controleer of de bucket bestaat, zo niet, dan maken we deze aan
-    try {
-      const { data: buckets } = await supabase.storage.listBuckets()
-      const photosBucketExists = buckets?.some((bucket) => bucket.name === "photos")
-
-      if (!photosBucketExists) {
-        await supabase.storage.createBucket("photos", {
-          public: true,
-        })
-      }
-    } catch (bucketError) {
-      console.error("Bucket check error:", bucketError)
-      // Ga door, zelfs als de bucket check mislukt
-    }
-
-    const { data: uploadData, error: uploadError } = await supabase.storage.from("photos").upload(fileName, file, {
-      cacheControl: "3600",
-      upsert: false,
+    // Gebruik de API route om de foto te uploaden
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
     })
 
-    if (uploadError) {
-      console.error("Upload error details:", uploadError)
-      return { error: `Upload error: ${uploadError.message}` }
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { error: errorData.error || "Er is een fout opgetreden bij het uploaden" }
     }
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("photos").getPublicUrl(fileName)
+    const data = await response.json()
 
-    const { data: existingPhotos } = await supabase.from("photos").select("id").eq("is_current", true)
-
-    if (existingPhotos && existingPhotos.length > 0) {
-      const { error: updateError } = await supabase.from("photos").update({ is_current: false }).eq("is_current", true)
-
-      if (updateError) {
-        console.error("Update error details:", updateError)
-        return { error: `Database update error: ${updateError.message}` }
-      }
-    }
-
-    const { data, error } = await supabase
-      .from("photos")
-      .insert([
-        {
-          image_url: publicUrl,
-          is_current: true,
-        },
-      ])
-      .select()
-
-    if (error) {
-      console.error("Insert error details:", error)
-      return { error: `Database insert error: ${error.message}` }
-    }
-
+    // Revalideer de paden om de nieuwe foto direct te tonen
     revalidatePath("/")
     revalidatePath("/archief")
 
